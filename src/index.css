@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-recovery-50 text-recovery-900;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Montserrat', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200 shadow-fitness;
+  }
+  
+  .btn-secondary {
+    @apply bg-recovery-200 hover:bg-recovery-300 text-recovery-800 px-6 py-3 rounded-lg font-medium transition-colors duration-200;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-lg border border-recovery-100 p-6;
+  }
+  
+  .muscle-card {
+    @apply bg-muscle-50 border border-muscle-200 hover:bg-muscle-100 transition-colors duration-200;
+  }
+  
+  .strength-card {
+    @apply bg-strength-50 border border-strength-200 hover:bg-strength-100 transition-colors duration-200;
+  }
+  
+  .cardio-card {
+    @apply bg-cardio-50 border border-cardio-200 hover:bg-cardio-100 transition-colors duration-200;
+  }
+}
