@@ -130,12 +130,77 @@ export interface FoodItem {
 }
 
 export interface NutritionGoal {
+  id: string;
   userId: string;
   dailyCalories: number;
   proteinGoal: number; // in grams
   carbGoal: number; // in grams
   fatGoal: number; // in grams
   waterGoal?: number; // in liters
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface NutritionEntry {
+  id: string;
+  userId: string;
+  date: Date;
+  totalCalories: number;
+  totalProtein: number;
+  totalCarbs: number;
+  totalFat: number;
+  totalFiber: number;
+  waterIntake?: number;
+  meals: Meal[];
+  notes?: string;
+}
+
+export interface Meal {
+  id: string;
+  type: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  name: string;
+  foods: FoodEntry[];
+  totalCalories: number;
+  totalProtein: number;
+  totalCarbs: number;
+  totalFat: number;
+  timestamp: Date;
+}
+
+export interface FoodEntry {
+  id: string;
+  foodId: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber?: number;
+}
+
+export interface FoodDatabase {
+  id: string;
+  name: string;
+  brand?: string;
+  servingSize: number;
+  servingUnit: string;
+  caloriesPerServing: number;
+  proteinPerServing: number;
+  carbsPerServing: number;
+  fatPerServing: number;
+  fiberPerServing?: number;
+  category: 'protein' | 'carbs' | 'fats' | 'vegetables' | 'fruits' | 'dairy' | 'grains' | 'other';
+  barcode?: string;
+}
+
+export interface WaterEntry {
+  id: string;
+  userId: string;
+  date: Date;
+  amount: number; // in ml
+  timestamp: Date;
 }
 
 export interface Achievement {

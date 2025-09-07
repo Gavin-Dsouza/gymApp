@@ -1,10 +1,11 @@
 import type { 
-  User, BodyWeight, Exercise, WorkoutSession, PersonalRecord, CalorieEntry
+  User, BodyWeight, Exercise, WorkoutSession, PersonalRecord, CalorieEntry,
+  NutritionEntry, NutritionGoal, FoodDatabase, WaterEntry
 } from '../types';
 
 class GymDatabase {
   private dbName = 'GymApp';
-  private version = 1;
+  private version = 2;
   private db: IDBDatabase | null = null;
 
   async init(): Promise<void> {
@@ -84,6 +85,36 @@ class GymDatabase {
         if (!db.objectStoreNames.contains('workoutTemplates')) {
           const templateStore = db.createObjectStore('workoutTemplates', { keyPath: 'id' });
           templateStore.createIndex('userId', 'userId');
+        }
+
+        // Nutrition entries store
+        if (!db.objectStoreNames.contains('nutritionEntries')) {
+          const nutritionStore = db.createObjectStore('nutritionEntries', { keyPath: 'id' });
+          nutritionStore.createIndex('userId', 'userId');
+          nutritionStore.createIndex('date', 'date');
+          nutritionStore.createIndex('userDate', ['userId', 'date']);
+        }
+
+        // Nutrition goals store
+        if (!db.objectStoreNames.contains('nutritionGoals')) {
+          const goalStore = db.createObjectStore('nutritionGoals', { keyPath: 'id' });
+          goalStore.createIndex('userId', 'userId');
+        }
+
+        // Food database store
+        if (!db.objectStoreNames.contains('foodDatabase')) {
+          const foodStore = db.createObjectStore('foodDatabase', { keyPath: 'id' });
+          foodStore.createIndex('name', 'name');
+          foodStore.createIndex('category', 'category');
+          foodStore.createIndex('barcode', 'barcode');
+        }
+
+        // Water entries store
+        if (!db.objectStoreNames.contains('waterEntries')) {
+          const waterStore = db.createObjectStore('waterEntries', { keyPath: 'id' });
+          waterStore.createIndex('userId', 'userId');
+          waterStore.createIndex('date', 'date');
+          waterStore.createIndex('userDate', ['userId', 'date']);
         }
       };
     });
@@ -204,6 +235,11 @@ class GymDatabase {
     return session;
   }
 
+  async updateWorkoutSession(session: WorkoutSession): Promise<WorkoutSession> {
+    await this.performTransaction('workoutSessions', 'readwrite', store => store.put(session));
+    return session;
+  }
+
   async getWorkoutSessions(userId: string, limit?: number): Promise<WorkoutSession[]> {
     return new Promise((resolve, reject) => {
       if (!this.db) {
@@ -291,6 +327,157 @@ class GymDatabase {
     });
   }
 
+  // Nutrition operations
+  async addNutritionEntry(entry: NutritionEntry): Promise<NutritionEntry> {
+    await this.performTransaction('nutritionEntries', 'readwrite', store => store.put(entry));
+    return entry;
+  }
+
+  async getNutritionEntry(userId: string, date: Date): Promise<NutritionEntry | null> {
+    const dateKey = date.toDateString();
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('Database not initialized'));
+        return;
+      }
+
+      const transaction = this.db.transaction(['nutritionEntries'], 'readonly');
+      const store = transaction.objectStore('nutritionEntries');
+      const index = store.index('userDate');
+      const request = index.getAll([userId, dateKey]);
+
+      request.onsuccess = () => {
+        const results = request.result;
+        resolve(results.length > 0 ? results[0] : null);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async getNutritionEntries(userId: string, startDate: Date, endDate: Date): Promise<NutritionEntry[]> {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('Database not initialized'));
+        return;
+      }
+
+      const transaction = this.db.transaction(['nutritionEntries'], 'readonly');
+      const store = transaction.objectStore('nutritionEntries');
+      const index = store.index('userDate');
+      
+      const startKey = [userId, startDate.toDateString()];
+      const endKey = [userId, endDate.toDateString()];
+      const range = IDBKeyRange.bound(startKey, endKey);
+      const request = index.getAll(range);
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Nutrition goal operations
+  async addNutritionGoal(goal: NutritionGoal): Promise<NutritionGoal> {
+    await this.performTransaction('nutritionGoals', 'readwrite', store => store.put(goal));
+    return goal;
+  }
+
+  async updateNutritionGoal(goal: NutritionGoal): Promise<NutritionGoal> {
+    await this.performTransaction('nutritionGoals', 'readwrite', store => store.put(goal));
+    return goal;
+  }
+
+  async getNutritionGoal(userId: string): Promise<NutritionGoal | null> {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('Database not initialized'));
+        return;
+      }
+
+      const transaction = this.db.transaction(['nutritionGoals'], 'readonly');
+      const store = transaction.objectStore('nutritionGoals');
+      const index = store.index('userId');
+      const request = index.get(userId);
+
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Food database operations
+  async addFood(food: FoodDatabase): Promise<FoodDatabase> {
+    await this.performTransaction('foodDatabase', 'readwrite', store => store.add(food));
+    return food;
+  }
+
+  async getFood(id: string): Promise<FoodDatabase | null> {
+    return await this.performTransaction('foodDatabase', 'readonly', store => store.get(id));
+  }
+
+  async getFoodDatabase(): Promise<FoodDatabase[]> {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('Database not initialized'));
+        return;
+      }
+
+      const transaction = this.db.transaction(['foodDatabase'], 'readonly');
+      const store = transaction.objectStore('foodDatabase');
+      const request = store.getAll();
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async searchFoods(query: string): Promise<FoodDatabase[]> {
+    const allFoods = await this.getFoodDatabase();
+    return allFoods.filter(food => 
+      food.name.toLowerCase().includes(query.toLowerCase()) ||
+      (food.brand && food.brand.toLowerCase().includes(query.toLowerCase()))
+    );
+  }
+
+  async getFoodsByCategory(category: FoodDatabase['category']): Promise<FoodDatabase[]> {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('Database not initialized'));
+        return;
+      }
+
+      const transaction = this.db.transaction(['foodDatabase'], 'readonly');
+      const store = transaction.objectStore('foodDatabase');
+      const index = store.index('category');
+      const request = index.getAll(category);
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Water entry operations
+  async addWaterEntry(entry: WaterEntry): Promise<WaterEntry> {
+    await this.performTransaction('waterEntries', 'readwrite', store => store.add(entry));
+    return entry;
+  }
+
+  async getWaterEntries(userId: string, date: Date): Promise<WaterEntry[]> {
+    const dateKey = date.toDateString();
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('Database not initialized'));
+        return;
+      }
+
+      const transaction = this.db.transaction(['waterEntries'], 'readonly');
+      const store = transaction.objectStore('waterEntries');
+      const index = store.index('userDate');
+      const request = index.getAll([userId, dateKey]);
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
   // Clear all data (for development/testing)
   async clearAllData(): Promise<void> {
     if (!this.db) return;
@@ -298,7 +485,8 @@ class GymDatabase {
     const storeNames = [
       'users', 'bodyWeights', 'exercises', 'workoutSessions', 
       'personalRecords', 'measurements', 'calorieEntries', 
-      'userAchievements', 'workoutTemplates'
+      'userAchievements', 'workoutTemplates', 'nutritionEntries',
+      'nutritionGoals', 'foodDatabase', 'waterEntries'
     ];
 
     for (const storeName of storeNames) {
